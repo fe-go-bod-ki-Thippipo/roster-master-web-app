@@ -125,3 +125,16 @@ Source: Claude Independent Architecture Review PR #4 (HEAD f48b9b5), findings R4
 | R5-15 Low | Proposed PERF-01 benchmark in TEST_PLAN | not started | Agree SLA before 003 |
 
 **Original F/A/T/M metadata (all 29):** severity/source classifications in Claude R5 review section D1 are proposed and not independent severity verification. F-01 Critical; F-02..F-08 High; F-09..F-19 Medium; F-20..F-22 Low; A-01 High; A-02..A-04 Medium; A-05 Low; T-01 and M-01 Medium. Source for each is Claude's original F/A/T/M review as reproduced in R5 section D; documentation status is proposed/decision closed only where explicitly noted in the original table; implementation status is NOT STARTED for every row. Original table above is retained for exact per-ID descriptions and tests.
+
+## Revision 6.1 — narrowly scoped R6 gates (documentation only)
+| Finding | 6.1 response | Implementation status | Next gate |
+|---|---|---|---|
+| R6-01 High | Supersede columns, partial exclusion, provenance, compensating link and example in DECISIONS/DD; only employee_company_history targeted for 002a-1 | NOT STARTED | Independent review of replacement timeline and baseline FK before SQL; other histories 002a-2/002b |
+| R6-03 Medium | Single normalized employee_code_registry including unbound legacy reservations | NOT STARTED | Legacy collision audit, FK/trigger review before 002a-1 |
+| R6-04 Medium | BEFORE UPDATE/DELETE/TRUNCATE triggers plus runtime REVOKE and owner privilege boundary | NOT STARTED | PostgreSQL negative tests EMP-05/AUD-02 |
+| R6-08 Medium | Non-cancelled historical HC predicate; inactive migration gated on data audit; Bangkok date | NOT STARTED | EMP-04/09 and legacy audit |
+| R6-09 Medium | EMP-04/05/06 plus supplementary 002a-1 cases | NOT STARTED | Execute on disposable PostgreSQL after SQL implementation |
+| R6-05 (002a-1 subset) | DD old unallocated/open and home-company alternatives reconciled; organization-related editorial cleanup deferred | NOT STARTED | Independent targeted text review; full cleanup before 002a-2/002b |
+| R6-02, R6-06, R6-07, R6-10..R6-13 | Not within 6.1 six-item implementation gate; R6-02 race and APR-13 explicitly deferred to 002a-2; other items retain original report deadlines | NOT STARTED | Do not mark resolved or merge main based on 6.1 |
+
+**Timezone owner confirmation:** Asia/Bangkok (UTC+07:00). **Review boundary:** documentation addendum only; no SQL/application edits, migration execution, tests or merge. 002a-1 may start only after targeted independent review accepts the six gate items and the baseline-compatible provenance/status strategy.
