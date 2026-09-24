@@ -137,4 +137,18 @@ Source: Claude Independent Architecture Review PR #4 (HEAD f48b9b5), findings R4
 | R6-05 (002a-1 subset) | DD old unallocated/open and home-company alternatives reconciled; organization-related editorial cleanup deferred | NOT STARTED | Independent targeted text review; full cleanup before 002a-2/002b |
 | R6-02, R6-06, R6-07, R6-10..R6-13 | Not within 6.1 six-item implementation gate; R6-02 race and APR-13 explicitly deferred to 002a-2; other items retain original report deadlines | NOT STARTED | Do not mark resolved or merge main based on 6.1 |
 
-**Timezone owner confirmation:** Asia/Bangkok (UTC+07:00). **Review boundary:** documentation addendum only; no SQL/application edits, migration execution, tests or merge. 002a-1 may start only after targeted independent review accepts the six gate items and the baseline-compatible provenance/status strategy.
+**Timezone owner confirmation:** Asia/Bangkok (UTC+07:00). **Review boundary:** documentation addendum only; no SQL/application edits, migration execution, tests or merge. 002a-1 may start only after targeted independent review accepts the six gate items and baseline approved/applied provenance strategy in Revision 6.2.
+
+## Revision 6.2 — Claude PR #7 findings R61-01..08 (documentation proposal; not independently accepted)
+| Finding | Targeted resolution | SQL status | Gate |
+|---|---|---|---|
+| R61-01 High | Replace both A/B rows with A' covering H onward; EMP-08 corrected | NOT STARTED | review full coverage and exclusion |
+| R61-02 Medium | Every approved change uses one-time supersede + full replacement, paired metadata and matched provenance; AUD-02/AUD-03 | NOT STARTED | verify normal transfer and termination |
+| R61-03 Medium | Projection from non-superseded history; no request-level superseded flag | NOT STARTED | EMP-08/10 |
+| R61-04 Medium | Baseline approved/applied provenance; no 002a-1 enum change | NOT STARTED | inspect baseline CHECK and approval evidence |
+| R61-05 Medium | All history writers serialize with employee FOR UPDATE via restricted writer function | NOT STARTED | EMP-11 concurrency |
+| R61-06 Medium | Legacy reservations permanently unbound; registry immutable and protected | NOT STARTED | EMP-12 and MIG-03 |
+| R61-07 Medium | Minimum assignment guard + idempotent projection reconcile included in 002a-1; X16/MIG-01 deferred | NOT STARTED | EMP-02/04/09/13, INT-02 |
+| R61-08 Medium | Original DD lifecycle/state paragraphs aligned with registry and history-derived projection | NOT STARTED | targeted editorial review |
+
+R61-09..R61-12 remain SQL-implementation checks (trigger UPDATE semantics, Bangkok business_date, interval bounds, baseline constraint catalog/whitespace). Other R6 findings remain deferred per Revision 6.1. This revision modifies documentation only, does not execute PostgreSQL tests, and must not be merged to main without owner approval.
