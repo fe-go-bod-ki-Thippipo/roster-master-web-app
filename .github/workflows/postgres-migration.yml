@@ -43,11 +43,17 @@ jobs:
           psql -v ON_ERROR_STOP=1 -c "CREATE ROLE roster_migrator LOGIN PASSWORD 'test-only-password' NOSUPERUSER NOCREATEDB NOCREATEROLE"
           psql -v ON_ERROR_STOP=1 -c "CREATE DATABASE roster_test OWNER roster_migrator"
           psql -v ON_ERROR_STOP=1 -c "CREATE DATABASE roster_atomicity_test OWNER roster_migrator"
+          psql -v ON_ERROR_STOP=1 -c "CREATE DATABASE roster_resume_test OWNER roster_migrator"
       - name: Verify atomic rollback on forced ledger failure
         env:
           PGUSER: roster_migrator
           PGDATABASE: roster_atomicity_test
         run: bash database/tests/test_atomicity.sh
+      - name: Verify migration resume from version 001
+        env:
+          PGUSER: roster_migrator
+          PGDATABASE: roster_resume_test
+        run: bash database/tests/test_resume.sh
       - name: Apply migrations with transactional runner
         env:
           PGUSER: roster_migrator
