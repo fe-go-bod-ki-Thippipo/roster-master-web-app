@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # Run from repository root. Requires psql, sha256sum and a pre-provisioned database.
 set -euo pipefail
-psql -X -v ON_ERROR_STOP=1 -f database/tests/000_migration_ledger.sql
+if [[ "$(psql -X -v ON_ERROR_STOP=1 -Atc "SELECT to_regclass('public.schema_migration_ledger') IS NULL")" == t ]]; then
+  psql -X -v ON_ERROR_STOP=1 -f database/tests/000_migration_ledger.sql
+fi
 for spec in "001:database/migrations/001_schema.sql" "002a-1:database/migrations/002a_1_employee_lifecycle.sql"; do
   version="${spec%%:*}"
   path="${spec#*:}"
