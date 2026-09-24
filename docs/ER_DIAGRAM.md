@@ -104,3 +104,24 @@ erDiagram
  CHANGE_REQUESTS o|--o{ POSITION_HISTORY : source_request
 ```
 All edges in this block are PROPOSED, not baseline FKs. New approved history records must carry approval provenance; audited migration baselines may instead use explicit migration provenance (final column shapes TBD). Current names/status and parent_position_id are derived projections, never authoritative for as-of reports or RLS. Root designation is effective-dated and approved per position; a root has no PRIMARY supervisor. Every new reporting edge needs approval; legacy imported edges use migration provenance exclusively.
+
+## Revision 5 — multi-company approval, migration provenance and root designation (proposed)
+```mermaid
+erDiagram
+ CHANGE_REQUESTS ||--o{ REQUEST_AFFECTED_COMPANIES : affects
+ COMPANIES ||--o{ REQUEST_AFFECTED_COMPANIES : must_approve
+ CHANGE_REQUESTS ||--o{ REQUEST_COMPANY_APPROVALS : has
+ COMPANIES ||--o{ REQUEST_COMPANY_APPROVALS : approver_scope
+ USERS ||--o{ REQUEST_COMPANY_APPROVALS : decides
+ CHANGE_REQUESTS ||--o{ REQUEST_APPLY_LEDGER : applies_once
+ MIGRATION_BATCHES o|--o{ COMPANY_GROUP_HISTORY : migration_provenance
+ MIGRATION_BATCHES o|--o{ COMPANY_HISTORY : migration_provenance
+ MIGRATION_BATCHES o|--o{ DIVISION_HISTORY : migration_provenance
+ MIGRATION_BATCHES o|--o{ SECTION_HISTORY : migration_provenance
+ MIGRATION_BATCHES o|--o{ DEPARTMENT_HISTORY : migration_provenance
+ MIGRATION_BATCHES o|--o{ POSITION_HISTORY : migration_provenance
+ MIGRATION_BATCHES o|--o{ EMPLOYEE_COMPANY_HISTORY : migration_provenance
+ MIGRATION_BATCHES o|--o{ EMPLOYEE_ASSIGNMENTS : migration_provenance
+ MIGRATION_BATCHES o|--o{ POSITION_FTE_HISTORY : migration_provenance
+```
+`POSITION_HISTORY.is_root` is an attribute, not an FK edge. `REQUEST_APPROVALS.workflow_id` is proposed to have composite FK to both request and approval step workflow; Mermaid cannot encode composite key membership accurately. For `COMPANY_HISTORY.company_group_id`, group is OPTIONAL pending explicit business decision; the baseline company.group_id is nullable. All above are proposed, not implemented.
