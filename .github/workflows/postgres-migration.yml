@@ -59,7 +59,7 @@ jobs:
               exit 1
             fi
             psql -v ON_ERROR_STOP=1 -f "$path"
-            psql -v ON_ERROR_STOP=1 -v version="$version" -v checksum="$checksum" -c "INSERT INTO public.schema_migration_ledger(version,checksum_sha256) VALUES (:'version',:'checksum')"
+            psql -v ON_ERROR_STOP=1 -c "INSERT INTO public.schema_migration_ledger(version,checksum_sha256) VALUES ('$version','$checksum')"
           done
           psql -v ON_ERROR_STOP=1 -Atc "SELECT count(*) = 2 FROM public.schema_migration_ledger" | grep -qx t
       - name: Run catalog and negative regression probes
