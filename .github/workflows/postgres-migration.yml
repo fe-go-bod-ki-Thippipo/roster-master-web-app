@@ -1,0 +1,46 @@
+name: PostgreSQL migration smoke test
+on:
+  push:
+    branches: [feature/002a-1-employee-lifecycle]
+  pull_request:
+    paths:
+      - 'database/migrations/**'
+      - '.github/workflows/postgres-migration.yml'
+  workflow_dispatch:
+jobs:
+  migration:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        postgres: ['15', '16']
+    services:
+      postgres:
+        image: postgres:${{ matrix.postgres }}
+        env:
+          POSTGRES_USER: roster
+          POSTGRES_PASSWORD: test-only-password
+          POSTGRES_DB: roster_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U roster -d roster_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      PGHOST: localhost
+      PGPORT: '5432'
+      PGUSER: roster
+      PGPASSWORD: test-only-password
+      PGDATABASE: roster_test
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply baseline schema
+        run: psql -v ON_ERROR_STOP=1 -f database/migrations/001_schema.sql
+      - name: Apply draft migration
+        run: psql -v ON_ERROR_STOP=1 -f database/migrations/002a_1_employee_lifecycle.sql
+      - name: Assert migration artifacts
+        run: |
+          psql -v ON_ERROR_STOP=1 -Atc "SELECT CASE WHEN to_regclass('public.employee_code_registry') IS NOT NULL AND to_regprocedure('public.rm_business_date(timestamp with time zone)') IS NOT NULL THEN 'ok' ELSE (1/0)::text END"
+          psql -v ON_ERROR_STOP=1 -Atc "SELECT CASE WHEN rm_business_date('2026-09-23 17:05:00+00'::timestamptz) = DATE '2026-09-24' THEN 'ok' ELSE (1/0)::text END"
