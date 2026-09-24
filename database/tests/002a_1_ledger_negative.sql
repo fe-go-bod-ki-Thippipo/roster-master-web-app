@@ -21,4 +21,10 @@ BEGIN
  EXCEPTION WHEN raise_exception THEN
   IF SQLERRM='Expected ledger delete rejection' THEN RAISE; END IF;
  END;
+ BEGIN
+  TRUNCATE public.schema_migration_ledger;
+  RAISE EXCEPTION 'Expected ledger truncate rejection';
+ EXCEPTION WHEN raise_exception THEN
+  IF SQLERRM='Expected ledger truncate rejection' THEN RAISE; END IF;
+ END;
 END $test$;
