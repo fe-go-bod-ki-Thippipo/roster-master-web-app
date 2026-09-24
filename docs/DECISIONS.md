@@ -60,7 +60,7 @@ Report date D; active employee means employment valid at D and not terminated as
 | FTE Gap | N/A (no comparable approved FTE denominator in view A) | Approved FTE minus Actual FTE |
 | Unallocated FTE | Separate indicator for home-company active employees without assignments; numeric capacity formula awaits owner approval | Not applicable |
 
-Fixture at D: A owns position PA target 1.00, B owns PB target 1.50. Employee E1 home A assigned PA 0.50 + PB 0.50; E2 home A no assignment; E3 home B assigned PB 0.50. View A: company A HC 2, actual 1.00, unassigned HC 1; company B HC 1, actual 0.50. View B: A HC 1, approved 1.00, actual 0.50, gap 0.50; B HC 2, approved 1.50, actual 1.00, gap 0.50. Group distinct HC 3, not sum of B company HC (3 in this fixture happens to coincide; E1 is in both rows and E2 in neither). Group actual FTE 1.50; group approved 2.50. This fixture is illustrative, not imported legacy data.
+Fixture at D: A owns position PA target 1.00, B owns PB target 1.50. Employee E1 home A assigned PA 0.50 + PB 0.50; E2 home A no assignment; E3 home B assigned PB 0.50. View A: company A HC 2, actual 1.00, unassigned HC 1; company B HC 1, actual 0.50. View B: A HC 1, approved 1.00, actual 0.50, gap 0.50; B HC 2, approved 1.50, actual 1.00, gap 0.50. Group home-company HC 3; group distinct assigned HC in view B 2 (E1 and E3), NOT the sum of view-B company HC rows (1+2=3): E1 appears in both B rows while E2 has no assignment. Group actual FTE 1.50; group approved 2.50. This fixture is illustrative, not imported legacy data.
 
 ## Remaining open items
 - Numeric definition of per-person unallocated FTE (whether approved individual capacity is 1.00), and treatment of leave/inactive employees in reports.
