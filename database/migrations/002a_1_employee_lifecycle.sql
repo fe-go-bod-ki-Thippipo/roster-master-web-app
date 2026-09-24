@@ -28,7 +28,7 @@ END $$;
 CREATE TRIGGER registry_no_update BEFORE UPDATE ON employee_code_registry FOR EACH ROW EXECUTE FUNCTION rm_registry_immutable();
 CREATE TRIGGER registry_no_delete BEFORE DELETE ON employee_code_registry FOR EACH ROW EXECUTE FUNCTION rm_registry_immutable();
 CREATE TRIGGER registry_no_truncate BEFORE TRUNCATE ON employee_code_registry FOR EACH STATEMENT EXECUTE FUNCTION rm_registry_immutable();
-CREATE FUNCTION rm_employee_code_immutable() RETURNS trigger LANGUAGE plpgsql AS $$
+CREATE FUNCTION rm_employee_code_immutable() RETURNS trigger LANGUAGE plpgsql SET search_path = pg_catalog, public AS $
 BEGIN
  IF NEW.employee_code IS DISTINCT FROM OLD.employee_code THEN
   RAISE EXCEPTION 'Employee code cannot be changed';
@@ -36,7 +36,7 @@ BEGIN
  RETURN NEW;
 END $$;
 CREATE TRIGGER employee_code_immutable BEFORE UPDATE ON employees FOR EACH ROW EXECUTE FUNCTION rm_employee_code_immutable();
-CREATE FUNCTION rm_no_destructive_dml() RETURNS trigger LANGUAGE plpgsql AS $$
+CREATE FUNCTION rm_no_destructive_dml() RETURNS trigger LANGUAGE plpgsql SET search_path = pg_catalog, public AS $
 BEGIN
  RAISE EXCEPTION 'Permanent deletion or audit mutation is prohibited';
 END $$;
