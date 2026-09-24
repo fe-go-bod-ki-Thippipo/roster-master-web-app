@@ -30,3 +30,8 @@ run_mutation registry_trigger "ALTER TABLE public.employee_code_registry DISABLE
 run_mutation employee_code_trigger "ALTER TABLE public.employees DISABLE TRIGGER employee_code_immutable;" "Employee code immutability trigger missing"
 run_mutation audit_delete_trigger "ALTER TABLE public.audit_logs DISABLE TRIGGER audit_no_delete;" "Audit delete trigger missing"
 run_mutation company_history_exclusion "ALTER TABLE public.employee_company_history DROP CONSTRAINT company_history_no_overlap;" "Active company-history exclusion constraint missing"
+
+run_mutation registry_delete_trigger "ALTER TABLE public.employee_code_registry DISABLE TRIGGER registry_no_delete;" "Registry delete trigger missing"
+run_mutation employee_delete_trigger "ALTER TABLE public.employees DISABLE TRIGGER employees_no_delete;" "Employee delete trigger missing"
+run_mutation audit_update_trigger "ALTER TABLE public.audit_logs DISABLE TRIGGER audit_no_update;" "Audit update trigger missing"
+run_mutation history_supersede_predicate "ALTER TABLE public.employee_company_history DROP CONSTRAINT company_history_no_overlap; ALTER TABLE public.employee_company_history ADD CONSTRAINT company_history_no_overlap EXCLUDE USING gist (employee_id WITH =, daterange(effective_from,COALESCE(effective_to + 1,'infinity'::date),'[)') WITH &&) DEFERRABLE INITIALLY DEFERRED;" "Company history exclusion supersede predicate or deferrability incorrect"
