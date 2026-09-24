@@ -42,6 +42,12 @@ for item in "${pending[@]}"; do
   rest="${item#*:}"
   path="${rest%%:*}"
   checksum="${rest##*:}"
-  psql -X -v ON_ERROR_STOP=1 -1 -f "$path" -c "INSERT INTO public.schema_migration_ledger(version,checksum_sha256) VALUES ('$version','$checksum')"
+  # The transaction-scoped lock serializes concurrent migration runners across hosts.
+  # Recheck the ledger after acquiring the lock to close the preflight race.
+  psql -X -v ON_ERROR_STOP=1 -1 \
+    -c "SELECT pg_advisory_xact_lock(728419, 20021)" \
+    -c "DO \\$guard\\$ BEGIN IF EXISTS (SELECT 1 FROM public.schema_migration_ledger WHERE version = '$version') THEN RAISE EXCEPTION 'MIGRATION_ALREADY_APPLIED: $version'; END IF; END \\$guard\\$;" \
+    -f "$path" \
+    -c "INSERT INTO public.schema_migration_ledger(version,checksum_sha256) VALUES ('$version','$checksum')"
   echo "APPLIED: $version"
 done
