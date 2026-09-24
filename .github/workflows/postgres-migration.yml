@@ -81,3 +81,12 @@ jobs:
           psql -v ON_ERROR_STOP=1 -Atc "SELECT checksum_sha256 = '$(sha256sum database/migrations/001_schema.sql | cut -d' ' -f1)' FROM public.schema_migration_ledger WHERE version='001'" | grep -qx t
           psql -v ON_ERROR_STOP=1 -Atc "SELECT checksum_sha256 = '$(sha256sum database/migrations/002a_1_employee_lifecycle.sql | cut -d' ' -f1)' FROM public.schema_migration_ledger WHERE version='002a-1'" | grep -qx t
           test "$(psql -v ON_ERROR_STOP=1 -Atc "SELECT count(*) FROM public.schema_migration_ledger WHERE version='001'")" = 1
+          # Exercise the same replay guard as the migration loop, not just ledger existence.
+          for spec in "001:database/migrations/001_schema.sql" "002a-1:database/migrations/002a_1_employee_lifecycle.sql"; do
+            version="${spec%%:*}"
+            path="${spec#*:}"
+            existing="$(psql -v ON_ERROR_STOP=1 -Atc "SELECT checksum_sha256 FROM public.schema_migration_ledger WHERE version = '$version'")"
+            test -n "$existing" || { echo "Missing ledger entry: $version" >&2; exit 1; }
+            test "$existing" = "$(sha256sum "$path" | cut -d' ' -f1)" || { echo "Checksum drift: $version" >&2; exit 1; }
+            echo "Replay rejected for $version"
+          done
