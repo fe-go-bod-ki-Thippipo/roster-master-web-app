@@ -62,6 +62,16 @@ jobs:
           test "$status" -eq 2
           echo "$output" | grep -q 'REPLAY_BLOCKED: 001'
           ! echo "$output" | grep -q 'APPLIED:'
+      - name: Verify checksum drift rejection
+        env:
+          PGUSER: roster_migrator
+          PGDATABASE: roster_test
+        run: bash database/tests/test_checksum_drift.sh
+      - name: Verify SQL integrity mutations are detected
+        env:
+          PGUSER: roster_migrator
+          PGDATABASE: roster_test
+        run: bash database/tests/test_mutations.sh
       - name: Run catalog and negative regression probes
         env:
           PGUSER: roster_migrator
