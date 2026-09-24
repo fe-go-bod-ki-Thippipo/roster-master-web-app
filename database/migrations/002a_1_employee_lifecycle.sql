@@ -2,7 +2,6 @@
 -- This migration is deliberately a draft: history writer, coverage constraints,
 -- assignment concurrency guards, projection reconciliation and role grants are pending.
 -- DO NOT DEPLOY or merge until complete PostgreSQL acceptance tests pass.
-BEGIN;
 -- 002a-1 creates the NEW database schema only. Legacy import is a separate phase.
 DO $$ BEGIN
  IF EXISTS (SELECT 1 FROM employees) OR EXISTS (SELECT 1 FROM employee_company_history) THEN
@@ -70,4 +69,3 @@ CREATE INDEX company_history_supersede_request_idx ON employee_company_history(s
 -- Importing legacy records is deferred to a separate audited migration phase.
 CREATE FUNCTION rm_business_date(p_at timestamptz DEFAULT now()) RETURNS date
  LANGUAGE sql STABLE SET search_path = pg_catalog, public AS $$ SELECT (p_at AT TIME ZONE 'Asia/Bangkok')::date $$;
-COMMIT;
