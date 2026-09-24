@@ -42,26 +42,26 @@ jobs:
         run: |
           psql -v ON_ERROR_STOP=1 -c "CREATE ROLE roster_migrator LOGIN PASSWORD 'test-only-password' NOSUPERUSER NOCREATEDB NOCREATEROLE"
           psql -v ON_ERROR_STOP=1 -c "CREATE DATABASE roster_test OWNER roster_migrator"
-      - name: Apply migrations and record immutable checksums
+      - name: Apply migrations with transactional runner
+        env:
+          PGUSER: roster_migrator
+          PGDATABASE: roster_test
+        run: |
+          bash database/tests/run_migrations.sh
+          psql -v ON_ERROR_STOP=1 -Atc "SELECT count(*) = 2 FROM public.schema_migration_ledger" | grep -qx t
+      - name: Verify replay rejection using the actual runner
         env:
           PGUSER: roster_migrator
           PGDATABASE: roster_test
         run: |
           set -euo pipefail
-          psql -v ON_ERROR_STOP=1 -f database/tests/000_migration_ledger.sql
-          for spec in "001:database/migrations/001_schema.sql" "002a-1:database/migrations/002a_1_employee_lifecycle.sql"; do
-            version="${spec%%:*}"
-            path="${spec#*:}"
-            checksum="$(sha256sum "$path" | cut -d' ' -f1)"
-            existing="$(psql -v ON_ERROR_STOP=1 -Atc "SELECT checksum_sha256 FROM public.schema_migration_ledger WHERE version = '$version'")"
-            if [ -n "$existing" ]; then
-              echo "Migration $version already recorded; refusing replay" >&2
-              exit 1
-            fi
-            psql -v ON_ERROR_STOP=1 -f "$path"
-            psql -v ON_ERROR_STOP=1 -c "INSERT INTO public.schema_migration_ledger(version,checksum_sha256) VALUES ('$version','$checksum')"
-          done
-          psql -v ON_ERROR_STOP=1 -Atc "SELECT count(*) = 2 FROM public.schema_migration_ledger" | grep -qx t
+          set +e
+          output="$(bash database/tests/run_migrations.sh 2>&1)"
+          status=$?
+          set -e
+          test "$status" -eq 2
+          echo "$output" | grep -q 'REPLAY_BLOCKED: 001'
+          ! echo "$output" | grep -q 'APPLIED:'
       - name: Run catalog and negative regression probes
         env:
           PGUSER: roster_migrator
