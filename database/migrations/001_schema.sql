@@ -1,6 +1,5 @@
 -- Roster Master Web App / Batch 2.1 / PostgreSQL 15+
 -- Run on a NEW empty database. Never run against the legacy application data.
-BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 CREATE EXTENSION IF NOT EXISTS btree_gist;
 CREATE DOMAIN fte_amount AS numeric(10,4) CHECK (VALUE >= 0);
@@ -43,4 +42,3 @@ CREATE INDEX idx_assignments_employee_dates ON employee_assignments(employee_id,
 CREATE INDEX idx_requests_company_status ON change_requests(company_id,status);
 CREATE INDEX idx_roles_user ON user_role_assignments(user_id,status);
 CREATE INDEX idx_migration_issues_batch ON migration_issues(migration_batch_id,resolution_status);
-COMMIT;
