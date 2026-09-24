@@ -152,3 +152,6 @@ Source: Claude Independent Architecture Review PR #4 (HEAD f48b9b5), findings R4
 | R61-08 Medium | Original DD lifecycle/state paragraphs aligned with registry and history-derived projection | NOT STARTED | targeted editorial review |
 
 R61-09..R61-12 remain SQL-implementation checks (trigger UPDATE semantics, Bangkok business_date, interval bounds, baseline constraint catalog/whitespace). Other R6 findings remain deferred per Revision 6.1. This revision modifies documentation only, does not execute PostgreSQL tests, and must not be merged to main without owner approval.
+
+## R62 review implementation gates (SQL PR; NOT STARTED)
+R62-01 documentation reconciled in first commit; R62-02 projection derives on INSERT and reconcile adjusts home/status without blocking unrelated writes; R62-03 employee-locked assignment/date/cancellation guards; R62-04 status-only test fixture provenance, no live deployment until 002a-2; R62-05 least-privilege role model; R62-06 SECURITY DEFINER safe search_path and deterministic locks; R62-07 injected business date and multi-session tests; R62-08 only changed employee code rejected and no self-compensation. All implementation and PostgreSQL tests remain NOT STARTED.
