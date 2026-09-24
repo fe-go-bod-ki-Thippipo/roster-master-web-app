@@ -1,10 +1,11 @@
-name: PostgreSQL migration smoke test
+name: PostgreSQL migration Step 0
 on:
   push:
     branches: [feature/002a-1-employee-lifecycle]
   pull_request:
     paths:
       - 'database/migrations/**'
+      - 'database/tests/**'
       - '.github/workflows/postgres-migration.yml'
   workflow_dispatch:
 jobs:
@@ -18,29 +19,60 @@ jobs:
       postgres:
         image: postgres:${{ matrix.postgres }}
         env:
-          POSTGRES_USER: roster
+          POSTGRES_USER: postgres
           POSTGRES_PASSWORD: test-only-password
-          POSTGRES_DB: roster_test
+          POSTGRES_DB: postgres
         ports:
           - 5432:5432
         options: >-
-          --health-cmd "pg_isready -U roster -d roster_test"
+          --health-cmd "pg_isready -U postgres -d postgres"
           --health-interval 5s
           --health-timeout 5s
           --health-retries 20
     env:
       PGHOST: localhost
       PGPORT: '5432'
-      PGUSER: roster
       PGPASSWORD: test-only-password
-      PGDATABASE: roster_test
     steps:
       - uses: actions/checkout@v4
-      - name: Apply baseline schema
-        run: psql -v ON_ERROR_STOP=1 -f database/migrations/001_schema.sql
-      - name: Apply draft migration
-        run: psql -v ON_ERROR_STOP=1 -f database/migrations/002a_1_employee_lifecycle.sql
-      - name: Assert migration artifacts
+      - name: Provision non-superuser migration role and owned test database
+        env:
+          PGUSER: postgres
+          PGDATABASE: postgres
         run: |
-          psql -v ON_ERROR_STOP=1 -Atc "SELECT to_regclass('public.employee_code_registry') IS NOT NULL AND to_regprocedure('public.rm_business_date(timestamp with time zone)') IS NOT NULL" | grep -qx t
-          psql -v ON_ERROR_STOP=1 -Atc "SELECT rm_business_date('2026-09-23 17:05:00+00'::timestamptz) = DATE '2026-09-24'" | grep -qx t
+          psql -v ON_ERROR_STOP=1 -c "CREATE ROLE roster_migrator LOGIN PASSWORD 'test-only-password' NOSUPERUSER NOCREATEDB NOCREATEROLE"
+          psql -v ON_ERROR_STOP=1 -c "CREATE DATABASE roster_test OWNER roster_migrator"
+      - name: Apply migrations and record immutable checksums
+        env:
+          PGUSER: roster_migrator
+          PGDATABASE: roster_test
+        run: |
+          set -euo pipefail
+          psql -v ON_ERROR_STOP=1 -f database/tests/000_migration_ledger.sql
+          for spec in "001:database/migrations/001_schema.sql" "002a-1:database/migrations/002a_1_employee_lifecycle.sql"; do
+            version="${spec%%:*}"
+            path="${spec#*:}"
+            checksum="$(sha256sum "$path" | cut -d' ' -f1)"
+            existing="$(psql -v ON_ERROR_STOP=1 -Atc "SELECT checksum_sha256 FROM public.schema_migration_ledger WHERE version = '$version'")"
+            if [ -n "$existing" ]; then
+              echo "Migration $version already recorded; refusing replay" >&2
+              exit 1
+            fi
+            psql -v ON_ERROR_STOP=1 -f "$path"
+            psql -v ON_ERROR_STOP=1 -v version="$version" -v checksum="$checksum" -c "INSERT INTO public.schema_migration_ledger(version,checksum_sha256) VALUES (:'version',:'checksum')"
+          done
+          psql -v ON_ERROR_STOP=1 -Atc "SELECT count(*) = 2 FROM public.schema_migration_ledger" | grep -qx t
+      - name: Run catalog and negative regression probes
+        env:
+          PGUSER: roster_migrator
+          PGDATABASE: roster_test
+        run: psql -v ON_ERROR_STOP=1 -f database/tests/002a_1_step0.sql
+      - name: Assert migration replay is blocked by ledger
+        env:
+          PGUSER: roster_migrator
+          PGDATABASE: roster_test
+        run: |
+          set -euo pipefail
+          psql -v ON_ERROR_STOP=1 -Atc "SELECT checksum_sha256 = '$(sha256sum database/migrations/001_schema.sql | cut -d' ' -f1)' FROM public.schema_migration_ledger WHERE version='001'" | grep -qx t
+          psql -v ON_ERROR_STOP=1 -Atc "SELECT checksum_sha256 = '$(sha256sum database/migrations/002a_1_employee_lifecycle.sql | cut -d' ' -f1)' FROM public.schema_migration_ledger WHERE version='002a-1'" | grep -qx t
+          test "$(psql -v ON_ERROR_STOP=1 -Atc "SELECT count(*) FROM public.schema_migration_ledger WHERE version='001'")" = 1
