@@ -95,7 +95,7 @@ All 13 above are EXISTING FK edges omitted from earlier diagrams, not new constr
 erDiagram
  COMPANY_GROUPS ||--o{ COMPANY_GROUP_HISTORY : names_as_of
  COMPANIES ||--o{ COMPANY_HISTORY : versions
- COMPANY_GROUPS ||--o{ COMPANY_HISTORY : group_as_of
+ COMPANY_GROUPS o|--o{ COMPANY_HISTORY : group_as_of
  CHANGE_REQUESTS o|--o{ COMPANY_GROUP_HISTORY : source_request
  CHANGE_REQUESTS o|--o{ COMPANY_HISTORY : source_request
  CHANGE_REQUESTS o|--o{ DIVISION_HISTORY : source_request
@@ -110,9 +110,10 @@ All edges in this block are PROPOSED, not baseline FKs. New approved history rec
 erDiagram
  CHANGE_REQUESTS ||--o{ REQUEST_AFFECTED_COMPANIES : affects
  COMPANIES ||--o{ REQUEST_AFFECTED_COMPANIES : must_approve
- CHANGE_REQUESTS ||--o{ REQUEST_COMPANY_APPROVALS : has
- COMPANIES ||--o{ REQUEST_COMPANY_APPROVALS : approver_scope
- USERS ||--o{ REQUEST_COMPANY_APPROVALS : decides
+ CHANGE_REQUESTS ||--o{ REQUEST_APPROVAL_STEP_INSTANCES : instantiates
+ COMPANIES ||--o{ REQUEST_APPROVAL_STEP_INSTANCES : required_company
+ APPROVAL_STEPS ||--o{ REQUEST_APPROVAL_STEP_INSTANCES : template
+ REQUEST_APPROVAL_STEP_INSTANCES ||--o{ REQUEST_APPROVALS : decisions
  CHANGE_REQUESTS ||--o{ REQUEST_APPLY_LEDGER : applies_once
  MIGRATION_BATCHES o|--o{ COMPANY_GROUP_HISTORY : migration_provenance
  MIGRATION_BATCHES o|--o{ COMPANY_HISTORY : migration_provenance
@@ -124,4 +125,7 @@ erDiagram
  MIGRATION_BATCHES o|--o{ EMPLOYEE_ASSIGNMENTS : migration_provenance
  MIGRATION_BATCHES o|--o{ POSITION_FTE_HISTORY : migration_provenance
 ```
-`POSITION_HISTORY.is_root` is an attribute, not an FK edge. `REQUEST_APPROVALS.workflow_id` is proposed to have composite FK to both request and approval step workflow; Mermaid cannot encode composite key membership accurately. For `COMPANY_HISTORY.company_group_id`, group is OPTIONAL pending explicit business decision; the baseline company.group_id is nullable. All above are proposed, not implemented.
+`POSITION_HISTORY.is_root` is an attribute, not an FK edge. `REQUEST_APPROVALS.workflow_id` is proposed to have composite FK to both request and approval step workflow; Mermaid cannot encode composite key membership accurately. For `COMPANY_HISTORY.company_group_id`, group is OPTIONAL pending explicit business decision; the baseline company.group_id is nullable. All above are proposed, not implemented. Revision 6 replaces the separate request_company_approvals table with per-company step instances; request_approvals is the single evidence table.
+
+## Revision 6 lifecycle notes
+Approved future history is committed at final approval. A new approved compensating request supersedes future intervals without deleting original approval/audit provenance. Role grants at division/department scope retain granted_owner_company_id and are denied immediately if the effective owner changes. Employee status cancelled excludes HC and forbids effective non-cancelled assignments. These are proposed attributes/rules, not baseline SQL.
