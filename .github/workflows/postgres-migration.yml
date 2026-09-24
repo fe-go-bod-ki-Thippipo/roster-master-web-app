@@ -66,7 +66,7 @@ jobs:
           status=$?
           set -e
           test "$status" -eq 2
-          echo "$output" | grep -q 'REPLAY_BLOCKED: 001'
+          echo "$output" | grep -q 'REPLAY_BLOCKED: all 2 migrations already applied'
           ! echo "$output" | grep -q 'APPLIED:'
       - name: Verify checksum drift rejection
         env:
