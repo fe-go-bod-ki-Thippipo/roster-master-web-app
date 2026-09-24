@@ -11,3 +11,6 @@ BEGIN
  RAISE EXCEPTION 'Migration ledger entries are immutable';
 END $fn$;
 CREATE TRIGGER schema_migration_ledger_immutable BEFORE UPDATE OR DELETE ON public.schema_migration_ledger FOR EACH ROW EXECUTE FUNCTION public.rm_ledger_immutable();
+
+-- TRUNCATE does not fire row-level DELETE triggers.
+CREATE TRIGGER schema_migration_ledger_no_truncate BEFORE TRUNCATE ON public.schema_migration_ledger FOR EACH STATEMENT EXECUTE FUNCTION public.rm_ledger_immutable();
