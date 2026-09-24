@@ -4,7 +4,7 @@ DECLARE n integer;
 BEGIN
  SELECT count(*) INTO n FROM pg_constraint WHERE conrelid='employee_code_registry'::regclass AND contype='p';
  IF n<>1 THEN RAISE EXCEPTION 'Registry primary key missing'; END IF;
- IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgrelid='employee_code_registry'::regclass AND tgname='registry_no_update' AND NOT tgisinternal) THEN RAISE EXCEPTION 'Registry immutability trigger missing'; END IF;
+ IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgrelid='employee_code_registry'::regclass AND tgname='registry_no_update' AND tgenabled='O' AND NOT tgisinternal) THEN RAISE EXCEPTION 'Registry immutability trigger missing'; END IF;
  IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgrelid='employees'::regclass AND tgname='employee_code_immutable' AND NOT tgisinternal) THEN RAISE EXCEPTION 'Employee code immutability trigger missing'; END IF;
  IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgrelid='audit_logs'::regclass AND tgname='audit_no_delete' AND NOT tgisinternal) THEN RAISE EXCEPTION 'Audit delete trigger missing'; END IF;
  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid='employee_company_history'::regclass AND conname='company_history_no_overlap' AND contype='x') THEN RAISE EXCEPTION 'Active company-history exclusion constraint missing'; END IF;
