@@ -4,9 +4,9 @@ Source: Claude R2.1 review (PR #2), IDs R-01..R-13 and suggestions S-01..S-04. T
 | ID | Disposition | Design response / target |
 |---|---|---|
 | R-01 | Accepted; partially documented | Original findings mapped in Revision 4; verify implementation separately. Current known items: row_version/optimistic locking, self-approval, workflow-company selection, inactive assignments, ownership edits, employee-code normalization, FK indexes, migration, audit append-only, idempotency. Targets 002a/002b/003 as appropriate. |
-| R-02 | Accepted; design proposed | DECISIONS and DATA_DICTIONARY define four versioned organization history entities, effective dates and historical names; 002b. |
+| R-02 | Accepted; design proposed | DECISIONS and DATA_DICTIONARY define six versioned organization and company/group history entities, effective dates and historical names; 002b. |
 | R-03 | Accepted; design proposed | parent_position_id read-only derived current primary edge from reporting-line history; migrate legacy values only after audit; 002b. |
-| R-04 | Accepted; design proposed | DECISIONS metric × view table and fixture; reporting/API implementation later. Numeric unallocated FTE remains open. |
+| R-04 | Accepted; design proposed | DECISIONS metric × view table and fixture; reporting/API implementation later. Numeric unallocated FTE fixed by D32: 1.0000 minus effective assignment FTE for every active employee. |
 | R-05 | Accepted; documented | Duplicate employee-position and no-recycle are now owner-confirmed D11/D12. |
 | R-06 | Accepted; documented | Approval by request type, multiple steps, company and central approvers D18. |
 | R-07 | Accepted; documented | Glossary D17; owner confirmed. |
@@ -24,7 +24,7 @@ Source: Claude R2.1 review (PR #2), IDs R-01..R-13 and suggestions S-01..S-04. T
 ## Gate before R2.2
 1. Review the mapped F-01..F-22, A-01..A-05, T-01, M-01 against actual implementation and test evidence.
 2. Independently review proposed history model, as-of reporting fixture, and approval lineage.
-3. Resolve numeric unallocated FTE capacity and remaining open questions as needed for implementation.
+3. Apply D32 numeric capacity and resolve only remaining open technical gates.
 4. No SQL, runtime tests or deployment were performed in R2.1 Revision 3; no merge to main.
 
 ## Revision 4 — original Claude findings (source: Claude Revision 3 report, section D)
@@ -104,3 +104,24 @@ Source: Claude Independent Architecture Review PR #4 (HEAD f48b9b5), findings R4
 | R4-16 | Low | DEC L73 | owner decision D33 | not started | never recycle employee code; no hard-delete; 002a |
 
 **Review gates:** R4-05 editorial reconciliation, R4-07 full test coverage, R4-10 baseline schema reconciliation, R4-11 legacy enum mapping and R4-13 original finding metadata remain open. Never describe a proposed design as an implemented fix.
+
+## Revision 6 — Claude R5 findings disposition (documentation only)
+| Finding | Doc disposition | Implementation | Gate / verification |
+|---|---|---|---|
+| R5-01 High | D09/D32 and metric fixture reconciled | not started | Confirm no obsolete unallocated wording |
+| R5-02 High | Canonical request statuses and compensating cancellation D34 proposed | not started | Compare all baseline enum values and transitions before 002a-2 |
+| R5-03 High | Workflow pinned once at first submit; draft nullable | not started | Composite FK and return/resubmit test |
+| R5-04 High | Per-company step instances + single request_approvals evidence table; activation does not reopen approval | not started | Independent review before 002b |
+| R5-05 Medium | granted_owner_company_id and fail-closed as-of RLS proposed | not started | 002b/003 ownership-transfer test |
+| R5-06 Medium | Draft conflicts edited in source; remaining editorial audit required | not started | Cross-file text search and independent review |
+| R5-07 Medium | Ledger is only attempt/error source, phase/key specified | not started | 002a-2 replay/retry tests |
+| R5-08 Medium | D35/D36 employee lifecycle, immutable code | not started | 002a-1 lifecycle tests |
+| R5-09 Medium | Import/reserve former employee codes | not started | MIG-02 legacy collision audit |
+| R5-10 Medium | Added test scenarios and X1–X26 matrix | not started | Run after SQL; check original source fixtures |
+| R5-11 Low | Original 29 findings severity/source/doc/impl metadata still needs independent reconciliation | not started | Documentation review |
+| R5-12 Low | Entity allowlist and column/type proposals normalized | not started | Baseline SQL catalog |
+| R5-13 Low | No clamp; negative residual flagged as data-quality error | not started | REP-01 |
+| R5-14 Low | Remove unused related_company from new enum subject to verifying no existing workflow rows | not started | 002a catalog |
+| R5-15 Low | Proposed PERF-01 benchmark in TEST_PLAN | not started | Agree SLA before 003 |
+
+**Original F/A/T/M metadata (all 29):** severity/source classifications in Claude R5 review section D1 are proposed and not independent severity verification. F-01 Critical; F-02..F-08 High; F-09..F-19 Medium; F-20..F-22 Low; A-01 High; A-02..A-04 Medium; A-05 Low; T-01 and M-01 Medium. Source for each is Claude's original F/A/T/M review as reproduced in R5 section D; documentation status is proposed/decision closed only where explicitly noted in the original table; implementation status is NOT STARTED for every row. Original table above is retained for exact per-ID descriptions and tests.
