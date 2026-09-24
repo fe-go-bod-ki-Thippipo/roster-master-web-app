@@ -9,7 +9,7 @@ run_mutation() {
   result="$(psql -X -v ON_ERROR_STOP=1 -At <<SQL 2>&1
 BEGIN;
 $sql
-\\i database/tests/002a_1_step0.sql
+\\i database/tests/002a_1_mutation_catalog.sql
 ROLLBACK;
 SQL
 )"
