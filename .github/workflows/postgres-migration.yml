@@ -67,6 +67,11 @@ jobs:
           PGUSER: roster_migrator
           PGDATABASE: roster_test
         run: psql -v ON_ERROR_STOP=1 -f database/tests/002a_1_step0.sql
+      - name: Test ledger replay and mutation rejection
+        env:
+          PGUSER: roster_migrator
+          PGDATABASE: roster_test
+        run: psql -v ON_ERROR_STOP=1 -f database/tests/002a_1_ledger_negative.sql
       - name: Assert migration replay is blocked by ledger
         env:
           PGUSER: roster_migrator
