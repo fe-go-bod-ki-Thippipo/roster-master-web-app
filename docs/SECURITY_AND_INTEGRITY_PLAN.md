@@ -1,0 +1,12 @@
+# Security and integrity implementation contract
+
+The SQL schema is a foundation, **not a production authorization layer**. Before connecting real data:
+
+1. Implement server-side tenant scoping on EVERY list, detail, create, update, export, chart, search, file download and approval endpoint. Resolve allowed company IDs from authenticated user-role assignments on the server; never trust a client-supplied company ID. Central scope does not imply access to sensitive employee profile fields.
+2. Use PostgreSQL Row Level Security as defense in depth. Establish transaction-local trusted identity and permitted company IDs only from the authenticated server session, with FORCE ROW LEVEL SECURITY and a non-owner, non-BYPASSRLS runtime role. Write policies for direct tables and joins (including assignments, history, approvals, attachments and analytics). Deny by default. Do not deploy without tested policies.
+3. For a cross-company transfer, require explicit permission for both source and destination company, or the appropriate central role. Record old and new company history in one transaction on effective date; employee UUID and employee_code stay unchanged.
+4. Implement atomic approval execution: lock request and affected records, verify active workflow/version and approver permissions, enforce document requirements and expected row_version, record approval decision, apply approved change exactly once, update audit and status, commit together. For future effective dates, schedule idempotent activation at the effective date.
+5. Add database-level or transactional enforcement for the total overlapping assignment FTE per employee, no cycles in position parent hierarchy, workflow date overlaps, approver step/workflow membership, and company lineage consistency. These cannot be guaranteed by the base SQL alone.
+6. Store identity numbers encrypted using an application-managed key service; compute lookup hashes with a secret-keyed HMAC. Never include identity numbers, contact details, access tokens or raw document bytes in logs.
+7. Revoke direct client access to PostgreSQL. Restrict file storage and use short-lived signed downloads after server-side authorization. Back up and test restore. Track schema migration versions with the chosen migration framework.
+8. Decide and document whether FTE per employee can exceed 1.0 and whether positions may be shared across companies before enabling write endpoints. The database permits FTE above 1.0 for an individual assignment pending that decision.
