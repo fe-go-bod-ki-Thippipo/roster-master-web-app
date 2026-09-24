@@ -44,6 +44,7 @@ jobs:
           psql -v ON_ERROR_STOP=1 -c "CREATE DATABASE roster_test OWNER roster_migrator"
           psql -v ON_ERROR_STOP=1 -c "CREATE DATABASE roster_atomicity_test OWNER roster_migrator"
           psql -v ON_ERROR_STOP=1 -c "CREATE DATABASE roster_resume_test OWNER roster_migrator"
+          psql -v ON_ERROR_STOP=1 -c "CREATE DATABASE roster_concurrent_test OWNER roster_migrator"
       - name: Verify atomic rollback on forced ledger failure
         env:
           PGUSER: roster_migrator
@@ -54,6 +55,11 @@ jobs:
           PGUSER: roster_migrator
           PGDATABASE: roster_resume_test
         run: bash database/tests/test_resume.sh
+      - name: Verify concurrent migration runners
+        env:
+          PGUSER: roster_migrator
+          PGDATABASE: roster_concurrent_test
+        run: bash database/tests/test_concurrent.sh
       - name: Apply migrations with transactional runner
         env:
           PGUSER: roster_migrator
