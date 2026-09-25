@@ -103,3 +103,47 @@ RETURNS boolean LANGUAGE sql STABLE SET search_path = pg_catalog, public AS $app
     )
  )
 $approval$;
+
+-- Step 1 incremental writer: request-backed company history only.
+-- No SECURITY DEFINER or runtime grants until company-scoped authorization is implemented.
+-- This function intentionally does not implement supersede or initial hire.
+CREATE FUNCTION rm_insert_approved_company_history(
+ p_employee_id uuid, p_company_id uuid, p_effective_from date,
+ p_effective_to date, p_request_id uuid
+) RETURNS uuid LANGUAGE plpgsql SECURITY INVOKER
+SET search_path = pg_catalog, public AS $history$
+DECLARE v_employee employees%ROWTYPE;
+        v_request change_requests%ROWTYPE;
+        v_history_id uuid;
+BEGIN
+ IF p_employee_id IS NULL OR p_company_id IS NULL OR p_effective_from IS NULL
+    OR p_request_id IS NULL OR (p_effective_to IS NOT NULL AND p_effective_to < p_effective_from) THEN
+  RAISE EXCEPTION 'HISTORY_INVALID_ARGUMENTS';
+ END IF;
+ SELECT * INTO STRICT v_employee FROM employees WHERE id=p_employee_id FOR UPDATE;
+ SELECT * INTO STRICT v_request FROM change_requests WHERE id=p_request_id FOR UPDATE;
+ IF v_employee.status='cancelled' OR p_effective_from < v_employee.hire_date
+    OR (v_employee.termination_date IS NOT NULL AND
+        (p_effective_to IS NULL OR p_effective_to > v_employee.termination_date)) THEN
+  RAISE EXCEPTION 'HISTORY_OUTSIDE_EMPLOYMENT';
+ END IF;
+ IF NOT EXISTS (
+   SELECT 1 FROM employee_code_registry
+   WHERE employee_id=p_employee_id AND code_normalized=upper(btrim(v_employee.employee_code))
+ ) THEN
+  RAISE EXCEPTION 'HISTORY_EMPLOYEE_CODE_NOT_RESERVED';
+ END IF;
+ IF v_request.effective_date IS DISTINCT FROM p_effective_from
+    OR v_request.request_type_id NOT IN (
+      SELECT id FROM request_types WHERE target_entity='employee_company_history'
+    )
+    OR NOT (v_request.company_id=p_company_id OR v_request.target_company_id=p_company_id)
+    OR NOT rm_request_has_approval_evidence(p_request_id) THEN
+  RAISE EXCEPTION 'HISTORY_APPROVAL_EVIDENCE_REQUIRED';
+ END IF;
+ INSERT INTO employee_company_history(employee_id,company_id,effective_from,effective_to,source_request_id)
+ VALUES (p_employee_id,p_company_id,p_effective_from,p_effective_to,p_request_id)
+ RETURNING id INTO v_history_id;
+ SET CONSTRAINTS company_history_no_overlap IMMEDIATE;
+ RETURN v_history_id;
+END $history$;
