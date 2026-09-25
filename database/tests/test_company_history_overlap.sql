@@ -61,8 +61,8 @@ INSERT INTO request_types(request_type_code,request_type_name,target_entity)
 VALUES ('N04-REQUEST','N04 fixture','employee_company_history');
 INSERT INTO approval_workflows(request_type_id,workflow_name,workflow_version,effective_from)
 SELECT id,'N04 workflow',1,DATE '2026-01-01' FROM request_types WHERE request_type_code='N04-REQUEST';
-INSERT INTO change_requests(request_no,request_type_id,workflow_id,requester_id,company_id,title)
-SELECT 'N04-CHANGE',t.id,w.id,u.id,c.id,'N04 fixture'
+INSERT INTO change_requests(request_no,request_type_id,workflow_id,requester_id,company_id,title,status,completed_at,effective_date)
+SELECT 'N04-CHANGE',t.id,w.id,u.id,c.id,'N04 fixture','approved',now(),DATE '2026-01-15'
 FROM request_types t JOIN approval_workflows w ON w.request_type_id=t.id
 CROSS JOIN users u CROSS JOIN companies c
 WHERE t.request_type_code='N04-REQUEST' AND u.username='n04-reviewer' AND c.company_code='N04-C';
