@@ -69,3 +69,37 @@ CREATE INDEX company_history_supersede_request_idx ON employee_company_history(s
 -- Importing legacy records is deferred to a separate audited migration phase.
 CREATE FUNCTION rm_business_date(p_at timestamptz DEFAULT now()) RETURNS date
  LANGUAGE sql STABLE SET search_path = pg_catalog, public AS $$ SELECT (p_at AT TIME ZONE 'Asia/Bangkok')::date $$;
+
+-- Step 1: approval evidence predicate. Status alone is never sufficient.
+-- This checks the final review round, each required step and authorized approver identity.
+-- Company-scope authorization and writer permissions remain separate pending gates.
+CREATE FUNCTION rm_request_has_approval_evidence(p_request_id uuid)
+RETURNS boolean LANGUAGE sql STABLE SET search_path = pg_catalog, public AS $approval$
+ SELECT EXISTS (
+  SELECT 1 FROM change_requests r
+  WHERE r.id = p_request_id AND r.status IN ('approved','applied')
+    AND r.completed_at IS NOT NULL
+    AND EXISTS (SELECT 1 FROM approval_steps s WHERE s.workflow_id = r.workflow_id)
+    AND NOT EXISTS (
+      SELECT 1 FROM approval_steps s
+      WHERE s.workflow_id = r.workflow_id
+        AND (
+          SELECT count(DISTINCT a.approver_id)
+          FROM request_approvals a
+          WHERE a.request_id = r.id AND a.approval_step_id = s.id
+            AND a.review_round = (
+              SELECT max(a2.review_round) FROM request_approvals a2
+              WHERE a2.request_id = r.id
+            )
+            AND a.decision = 'approved'
+            AND (s.approver_user_id = a.approver_id OR
+                 (s.approver_user_id IS NULL AND EXISTS (
+                   SELECT 1 FROM user_role_assignments ura
+                   WHERE ura.user_id = a.approver_id AND ura.role_id = s.approver_role_id
+                     AND ura.status = 'active'
+                 )))
+            AND (s.allow_self_approval OR a.approver_id <> r.requester_id)
+        ) < s.required_approvals
+    )
+ )
+$approval$;
