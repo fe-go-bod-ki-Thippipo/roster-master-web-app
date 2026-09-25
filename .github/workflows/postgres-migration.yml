@@ -37,6 +37,8 @@ jobs:
       - uses: actions/checkout@v4
       - name: Install PostgreSQL SQL parser
         run: python3 -m pip install --user 'pglast==7.10'
+      - name: Verify transaction guard negative and positive cases
+        run: python3 database/tests/test_transaction_guard.py
       - name: Provision non-superuser migration role and owned test database
         env:
           PGUSER: postgres
