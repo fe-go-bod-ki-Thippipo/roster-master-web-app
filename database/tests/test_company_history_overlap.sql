@@ -5,6 +5,10 @@ INSERT INTO companies(company_group_id,company_code,company_name)
 SELECT id,'N04-C','N04 company' FROM company_groups WHERE group_code='N04-G';
 INSERT INTO employees(employee_code,full_name,home_company_id,hire_date)
 SELECT 'N04-EMP','N04 fixture',id,DATE '2026-01-01' FROM companies WHERE company_code='N04-C';
+-- R-03 preparation: reserve fixture employee code before introducing registry guards.
+INSERT INTO employee_code_registry(code_normalized,code_original,employee_id,source)
+SELECT upper(btrim(employee_code)),employee_code,id,'system'
+FROM employees WHERE employee_code='N04-EMP';
 INSERT INTO migration_batches(source_checksum,source_file_name)
 VALUES (repeat('a',64),'n04-fixture');
 INSERT INTO employee_company_history(employee_id,company_id,effective_from,effective_to,migration_batch_id)
