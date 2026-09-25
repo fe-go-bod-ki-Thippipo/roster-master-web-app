@@ -114,6 +114,11 @@ jobs:
           \i database/tests/h1_company_authorization.sql
           ROLLBACK;
           SQL
+      - name: Verify H-1 behavior mutation detects original NULL-company bug
+        env:
+          PGUSER: roster_migrator
+          PGDATABASE: roster_test
+        run: bash database/tests/test_behavior_mutations.sh
       - name: Verify company-history exclusion behavior
         env:
           PGUSER: roster_migrator
