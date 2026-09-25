@@ -22,8 +22,8 @@ PY
 set +e
 output="$(psql -X -v ON_ERROR_STOP=1 <<SQL 2>&1
 BEGIN;
-\\i $mutation_file
-\\i database/tests/h1_company_authorization.sql
+\i $mutation_file
+\i database/tests/h1_company_authorization.sql
 ROLLBACK;
 SQL
 )"
