@@ -100,5 +100,24 @@ BEGIN
   RAISE EXCEPTION 'WRITER_VALID_INSERT_MISSING';
  END IF;
 END $writer$;
+-- B6-prime: A-only request with NULL target must never authorize company B.
+DO $b6$
+DECLARE e uuid; company_b uuid; rid uuid;
+BEGIN
+ SELECT id INTO e FROM employees WHERE employee_code='APP-EMP';
+ SELECT id INTO rid FROM change_requests WHERE request_no='APP-REQ';
+ INSERT INTO companies(company_group_id,company_code,company_name)
+ SELECT company_group_id,'APP-B','Other company' FROM companies WHERE company_code='APP-C'
+ RETURNING id INTO company_b;
+ BEGIN
+  PERFORM rm_insert_approved_company_history(e,company_b,DATE '2026-02-01',NULL,rid);
+  RAISE EXCEPTION 'B6_PRIME_WRONG_COMPANY_ACCEPTED';
+ EXCEPTION WHEN raise_exception THEN
+  IF SQLERRM <> 'HISTORY_APPROVAL_EVIDENCE_REQUIRED' THEN RAISE; END IF;
+ END;
+ IF EXISTS (SELECT 1 FROM employee_company_history WHERE employee_id=e AND company_id=company_b) THEN
+  RAISE EXCEPTION 'B6_PRIME_UNAUTHORIZED_HISTORY_PERSISTED';
+ END IF;
+END $b6$;
 ROLLBACK;
 SELECT 'PASS: approval evidence and history writer positive and negative probes' AS result;
