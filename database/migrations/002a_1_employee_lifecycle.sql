@@ -137,9 +137,11 @@ BEGIN
     OR v_request.request_type_id NOT IN (
       SELECT id FROM request_types WHERE target_entity='employee_company_history'
     )
-    OR NOT (v_request.company_id IS NOT DISTINCT FROM p_company_id OR v_request.target_company_id IS NOT DISTINCT FROM p_company_id)
     OR NOT rm_request_has_approval_evidence(p_request_id) THEN
   RAISE EXCEPTION 'HISTORY_APPROVAL_EVIDENCE_REQUIRED';
+ END IF;
+ IF NOT (v_request.company_id IS NOT DISTINCT FROM p_company_id OR v_request.target_company_id IS NOT DISTINCT FROM p_company_id) THEN
+  RAISE EXCEPTION 'HISTORY_COMPANY_NOT_AUTHORIZED';
  END IF;
  INSERT INTO employee_company_history(employee_id,company_id,effective_from,effective_to,source_request_id)
  VALUES (p_employee_id,p_company_id,p_effective_from,p_effective_to,p_request_id)
