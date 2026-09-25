@@ -51,7 +51,7 @@ FROM employees WHERE employee_code='APP-EMP';
 UPDATE change_requests SET effective_date=DATE '2026-02-01'
 WHERE request_no='APP-REQ';
 DO $writer$
-DECLARE e uuid; c uuid; rid uuid;
+DECLARE e uuid; c uuid; rid uuid; other_e uuid;
 BEGIN
  SELECT id INTO e FROM employees WHERE employee_code='APP-EMP';
  SELECT id INTO c FROM companies WHERE company_code='APP-C';
@@ -81,12 +81,7 @@ BEGIN
  EXCEPTION WHEN raise_exception THEN
   IF SQLERRM <> 'HISTORY_APPROVAL_EVIDENCE_REQUIRED' THEN RAISE; END IF;
  END;
--- Registry guard: approved request must not authorize an employee without a reservation.
-DO $registry$
-DECLARE other_e uuid; c uuid; rid uuid;
-BEGIN
- SELECT id INTO c FROM companies WHERE company_code='APP-C';
- SELECT id INTO rid FROM change_requests WHERE request_no='APP-REQ';
+ -- Registry guard: approved request must not authorize an employee without a reservation.
  INSERT INTO employees(employee_code,full_name,home_company_id,hire_date)
  VALUES ('APP-UNRESERVED','Unreserved employee',c,DATE '2026-01-01')
  RETURNING id INTO other_e;
@@ -99,7 +94,6 @@ BEGIN
  IF EXISTS (SELECT 1 FROM employee_company_history WHERE employee_id=other_e) THEN
   RAISE EXCEPTION 'WRITER_MISSING_REGISTRY_HISTORY_PERSISTED';
  END IF;
-END $registry$;
  -- A valid request must produce exactly one history row.
  PERFORM rm_insert_approved_company_history(e,c,DATE '2026-02-01',NULL,rid);
  IF (SELECT count(*) FROM employee_company_history WHERE employee_id=e) <> 1 THEN
