@@ -35,6 +35,8 @@ jobs:
       PGPASSWORD: test-only-password
     steps:
       - uses: actions/checkout@v4
+      - name: Install PostgreSQL SQL parser
+        run: python3 -m pip install --user 'pglast==7.10'
       - name: Provision non-superuser migration role and owned test database
         env:
           PGUSER: postgres
