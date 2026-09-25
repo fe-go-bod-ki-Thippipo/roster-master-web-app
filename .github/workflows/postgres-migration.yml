@@ -111,7 +111,7 @@ jobs:
         run: |
           psql -X -v ON_ERROR_STOP=1 <<'SQL'
           BEGIN;
-          \\i database/tests/h1_company_authorization.sql
+          \i database/tests/h1_company_authorization.sql
           ROLLBACK;
           SQL
       - name: Verify company-history exclusion behavior
