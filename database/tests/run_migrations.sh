@@ -12,10 +12,7 @@ seen_pending=0
 for spec in "${specs[@]}"; do
   version="${spec%%:*}"
   path="${spec#*:}"
-  if grep -Ein '^[[:space:]]*(BEGIN|COMMIT|ROLLBACK)([[:space:]]+(WORK|TRANSACTION))?[[:space:]]*;([[:space:]]*--.*)?[[:space:]]*$' "$path"; then
-    echo "TRANSACTION_CONTROL_FORBIDDEN: $version" >&2
-    exit 4
-  fi
+  python3 database/tests/check_migration_sql.py "$path"
   checksum="$(sha256sum "$path" | cut -d' ' -f1)"
   existing="$(psql -X -v ON_ERROR_STOP=1 -Atc "SELECT checksum_sha256 FROM public.schema_migration_ledger WHERE version = '$version'")"
   if [[ -n "$existing" ]]; then
