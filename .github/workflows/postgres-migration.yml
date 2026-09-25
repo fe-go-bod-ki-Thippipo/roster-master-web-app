@@ -1,0 +1,149 @@
+name: PostgreSQL migration Step 0
+on:
+  push:
+    branches: [feature/002a-1-employee-lifecycle]
+  pull_request:
+    paths:
+      - 'database/migrations/**'
+      - 'database/tests/**'
+      - '.github/workflows/postgres-migration.yml'
+  workflow_dispatch:
+jobs:
+  migration:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        postgres: ['15', '16']
+    services:
+      postgres:
+        image: postgres:${{ matrix.postgres }}
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: test-only-password
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      PGHOST: localhost
+      PGPORT: '5432'
+      PGPASSWORD: test-only-password
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install PostgreSQL SQL parser
+        run: python3 -m pip install --user 'pglast==7.10'
+      - name: Verify transaction guard negative and positive cases
+        run: python3 database/tests/test_transaction_guard.py
+      - name: Provision non-superuser migration role and owned test database
+        env:
+          PGUSER: postgres
+          PGDATABASE: postgres
+        run: |
+          psql -v ON_ERROR_STOP=1 -c "CREATE ROLE roster_migrator LOGIN PASSWORD 'test-only-password' NOSUPERUSER NOCREATEDB NOCREATEROLE"
+          psql -v ON_ERROR_STOP=1 -c "CREATE DATABASE roster_test OWNER roster_migrator"
+          psql -v ON_ERROR_STOP=1 -c "CREATE DATABASE roster_atomicity_test OWNER roster_migrator"
+          psql -v ON_ERROR_STOP=1 -c "CREATE DATABASE roster_resume_test OWNER roster_migrator"
+          psql -v ON_ERROR_STOP=1 -c "CREATE DATABASE roster_concurrent_test OWNER roster_migrator"
+      - name: Verify atomic rollback on forced ledger failure
+        env:
+          PGUSER: roster_migrator
+          PGDATABASE: roster_atomicity_test
+        run: bash database/tests/test_atomicity.sh
+      - name: Verify migration resume from version 001
+        env:
+          PGUSER: roster_migrator
+          PGDATABASE: roster_resume_test
+        run: bash database/tests/test_resume.sh
+      - name: Verify concurrent migration runners
+        env:
+          PGUSER: roster_migrator
+          PGDATABASE: roster_concurrent_test
+        run: bash database/tests/test_concurrent.sh
+      - name: Apply migrations with transactional runner
+        env:
+          PGUSER: roster_migrator
+          PGDATABASE: roster_test
+        run: |
+          bash database/tests/run_migrations.sh
+          psql -v ON_ERROR_STOP=1 -Atc "SELECT count(*) = 2 FROM public.schema_migration_ledger" | grep -qx t
+      - name: Verify replay rejection using the actual runner
+        env:
+          PGUSER: roster_migrator
+          PGDATABASE: roster_test
+        run: |
+          set -euo pipefail
+          set +e
+          output="$(bash database/tests/run_migrations.sh 2>&1)"
+          status=$?
+          set -e
+          test "$status" -eq 2
+          echo "$output" | grep -q 'REPLAY_BLOCKED: all 2 migrations already applied'
+          ! echo "$output" | grep -q 'APPLIED:'
+      - name: Verify checksum drift rejection
+        env:
+          PGUSER: roster_migrator
+          PGDATABASE: roster_test
+        run: bash database/tests/test_checksum_drift.sh
+      - name: Verify SQL integrity mutations are detected
+        env:
+          PGUSER: roster_migrator
+          PGDATABASE: roster_test
+        run: bash database/tests/test_mutations.sh
+      - name: Run catalog and negative regression probes
+        env:
+          PGUSER: roster_migrator
+          PGDATABASE: roster_test
+        run: psql -v ON_ERROR_STOP=1 -f database/tests/002a_1_step0.sql
+      - name: Verify approval evidence positive and negative cases
+        env:
+          PGUSER: roster_migrator
+          PGDATABASE: roster_test
+        run: psql -X -v ON_ERROR_STOP=1 -f database/tests/test_approval_evidence.sql
+      - name: Verify isolated H-1 company authorization B6-prime
+        env:
+          PGUSER: roster_migrator
+          PGDATABASE: roster_test
+        run: |
+          psql -X -v ON_ERROR_STOP=1 <<'SQL'
+          BEGIN;
+          \i database/tests/h1_company_authorization.sql
+          ROLLBACK;
+          SQL
+      - name: Verify H-1 behavior mutation detects original NULL-company bug
+        env:
+          PGUSER: roster_migrator
+          PGDATABASE: roster_test
+        run: bash database/tests/test_behavior_mutations.sh
+      - name: Verify company-history exclusion behavior
+        env:
+          PGUSER: roster_migrator
+          PGDATABASE: roster_test
+        run: psql -X -v ON_ERROR_STOP=1 -f database/tests/test_company_history_overlap.sql
+      - name: Test ledger replay and mutation rejection
+        env:
+          PGUSER: roster_migrator
+          PGDATABASE: roster_test
+        run: psql -v ON_ERROR_STOP=1 -f database/tests/002a_1_ledger_negative.sql
+      - name: Assert migration replay is blocked by ledger
+        env:
+          PGUSER: roster_migrator
+          PGDATABASE: roster_test
+        run: |
+          set -euo pipefail
+          psql -v ON_ERROR_STOP=1 -Atc "SELECT checksum_sha256 = '$(sha256sum database/migrations/001_schema.sql | cut -d' ' -f1)' FROM public.schema_migration_ledger WHERE version='001'" | grep -qx t
+          psql -v ON_ERROR_STOP=1 -Atc "SELECT checksum_sha256 = '$(sha256sum database/migrations/002a_1_employee_lifecycle.sql | cut -d' ' -f1)' FROM public.schema_migration_ledger WHERE version='002a-1'" | grep -qx t
+          test "$(psql -v ON_ERROR_STOP=1 -Atc "SELECT count(*) FROM public.schema_migration_ledger WHERE version='001'")" = 1
+          # Exercise the same replay guard as the migration loop, not just ledger existence.
+          for spec in "001:database/migrations/001_schema.sql" "002a-1:database/migrations/002a_1_employee_lifecycle.sql"; do
+            version="${spec%%:*}"
+            path="${spec#*:}"
+            existing="$(psql -v ON_ERROR_STOP=1 -Atc "SELECT checksum_sha256 FROM public.schema_migration_ledger WHERE version = '$version'")"
+            test -n "$existing" || { echo "Missing ledger entry: $version" >&2; exit 1; }
+            test "$existing" = "$(sha256sum "$path" | cut -d' ' -f1)" || { echo "Checksum drift: $version" >&2; exit 1; }
+            echo "Replay rejected for $version"
+          done
