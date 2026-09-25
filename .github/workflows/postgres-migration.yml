@@ -99,6 +99,11 @@ jobs:
           PGUSER: roster_migrator
           PGDATABASE: roster_test
         run: psql -v ON_ERROR_STOP=1 -f database/tests/002a_1_step0.sql
+      - name: Verify approval evidence positive and negative cases
+        env:
+          PGUSER: roster_migrator
+          PGDATABASE: roster_test
+        run: psql -X -v ON_ERROR_STOP=1 -f database/tests/test_approval_evidence.sql
       - name: Verify company-history exclusion behavior
         env:
           PGUSER: roster_migrator
