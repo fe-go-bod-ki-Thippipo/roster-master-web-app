@@ -33,6 +33,24 @@ BEGIN
   RAISE EXCEPTION 'N04_UNEXPECTED_HISTORY_ROWS';
  END IF;
 END $test$;
+-- R-01: January 31 alone overlaps ONLY the first history row. If the
+-- inclusive end-date +1 is removed, this insert incorrectly succeeds.
+DO $test$
+DECLARE e uuid; c uuid; m uuid;
+BEGIN
+ SELECT id INTO e FROM employees WHERE employee_code='N04-EMP';
+ SELECT id INTO c FROM companies WHERE company_code='N04-C';
+ SELECT id INTO m FROM migration_batches WHERE source_file_name='n04-fixture';
+ BEGIN
+  INSERT INTO employee_company_history(employee_id,company_id,effective_from,effective_to,migration_batch_id)
+  VALUES(e,c,DATE '2026-01-31',DATE '2026-01-31',m);
+  RAISE EXCEPTION 'R01_INCLUSIVE_END_OVERLAP_ACCEPTED';
+ EXCEPTION WHEN exclusion_violation THEN NULL;
+ END;
+ IF (SELECT count(*) FROM employee_company_history WHERE employee_id=e) <> 2 THEN
+  RAISE EXCEPTION 'R01_UNEXPECTED_HISTORY_ROWS';
+ END IF;
+END $test$;
 -- Superseding the first period removes it from the active exclusion set.
 INSERT INTO users(username,display_name) VALUES ('n04-reviewer','N04 reviewer');
 INSERT INTO request_types(request_type_code,request_type_name,target_entity)
@@ -63,4 +81,4 @@ BEGIN
  END IF;
 END $test$;
 ROLLBACK;
-SELECT 'PASS: N-04 adjacent periods accepted; overlapping periods rejected; superseded periods excluded' AS n04_result;
+SELECT 'PASS: N-04 adjacent periods accepted; inclusive end-date overlap rejected; superseded periods excluded' AS n04_result;
