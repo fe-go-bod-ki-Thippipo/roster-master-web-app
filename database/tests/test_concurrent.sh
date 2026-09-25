@@ -4,10 +4,24 @@ set -euo pipefail
 psql -X -v ON_ERROR_STOP=1 -f database/tests/000_migration_ledger.sql
 dir="$(mktemp -d)"
 trap 'rm -rf "$dir"' EXIT
+# Hold the same advisory lock before launching either runner to force real contention.
+# A persistent lock holder must stay connected; use a FIFO to release it after both
+# runners reach the waiting state.
+psql -X -v ON_ERROR_STOP=1 -Atc "SELECT pg_advisory_lock(728419,20021); SELECT pg_sleep(8);" >"$dir/holder.log" 2>&1 &
+holder=$!
+sleep 1
 bash database/tests/run_migrations.sh >"$dir/first.log" 2>&1 &
 first=$!
 bash database/tests/run_migrations.sh >"$dir/second.log" 2>&1 &
 second=$!
+sleep 2
+waiters="$(psql -X -v ON_ERROR_STOP=1 -Atc "SELECT count(*) FROM pg_stat_activity WHERE datname=current_database() AND wait_event='advisory' AND query LIKE '%pg_advisory_xact_lock(728419, 20021)%'")"
+if [[ "$waiters" -lt 2 ]]; then
+ echo "FAIL: both runners did not contend for the advisory lock (waiters=$waiters)" >&2
+ kill "$first" "$second" "$holder" 2>/dev/null || true
+ exit 1
+fi
+wait "$holder"
 set +e
 wait "$first"; first_status=$?
 wait "$second"; second_status=$?
