@@ -41,5 +41,51 @@ BEGIN
  VALUES(rid,step1,requester,'approved');
  IF rm_request_has_approval_evidence(rid) THEN RAISE EXCEPTION 'APP_SELF_APPROVAL_ACCEPTED'; END IF;
 END $test$;
+-- Writer must reject a status-only approval even with valid employee registry.
+INSERT INTO employees(employee_code,full_name,home_company_id,hire_date)
+SELECT 'APP-EMP','Approval writer fixture',id,DATE '2026-01-01'
+FROM companies WHERE company_code='APP-C';
+INSERT INTO employee_code_registry(code_normalized,code_original,employee_id,source)
+SELECT upper(btrim(employee_code)),employee_code,id,'system'
+FROM employees WHERE employee_code='APP-EMP';
+UPDATE change_requests SET effective_date=DATE '2026-02-01'
+WHERE request_no='APP-REQ';
+DO $writer$
+DECLARE e uuid; c uuid; rid uuid;
+BEGIN
+ SELECT id INTO e FROM employees WHERE employee_code='APP-EMP';
+ SELECT id INTO c FROM companies WHERE company_code='APP-C';
+ SELECT id INTO rid FROM change_requests WHERE request_no='APP-REQ';
+ -- Prior DO block leaves only a self-approval for step 1.
+ BEGIN
+  PERFORM rm_insert_approved_company_history(e,c,DATE '2026-02-01',NULL,rid);
+  RAISE EXCEPTION 'WRITER_UNAUTHORIZED_REQUEST_ACCEPTED';
+ EXCEPTION WHEN raise_exception THEN
+  IF SQLERRM <> 'HISTORY_APPROVAL_EVIDENCE_REQUIRED' THEN RAISE; END IF;
+ END;
+ IF EXISTS (SELECT 1 FROM employee_company_history WHERE employee_id=e) THEN
+  RAISE EXCEPTION 'WRITER_UNAUTHORIZED_HISTORY_PERSISTED';
+ END IF;
+ -- A matching approved request cannot bypass the employee-code registry.
+ DELETE FROM request_approvals WHERE request_id=rid;
+ INSERT INTO request_approvals(request_id,approval_step_id,approver_id,decision)
+ SELECT rid,s.id,u.id,'approved' FROM approval_steps s
+ JOIN users u ON u.username=CASE s.step_order WHEN 1 THEN 'app-reviewer-1' ELSE 'app-reviewer-2' END
+ WHERE s.workflow_id=(SELECT workflow_id FROM change_requests WHERE id=rid);
+ IF NOT rm_request_has_approval_evidence(rid) THEN
+  RAISE EXCEPTION 'WRITER_FIXTURE_APPROVAL_INVALID';
+ END IF;
+ BEGIN
+  PERFORM rm_insert_approved_company_history(e,c,DATE '2026-02-02',NULL,rid);
+  RAISE EXCEPTION 'WRITER_WRONG_EFFECTIVE_DATE_ACCEPTED';
+ EXCEPTION WHEN raise_exception THEN
+  IF SQLERRM <> 'HISTORY_APPROVAL_EVIDENCE_REQUIRED' THEN RAISE; END IF;
+ END;
+ -- A valid request must produce exactly one history row.
+ PERFORM rm_insert_approved_company_history(e,c,DATE '2026-02-01',NULL,rid);
+ IF (SELECT count(*) FROM employee_company_history WHERE employee_id=e) <> 1 THEN
+  RAISE EXCEPTION 'WRITER_VALID_INSERT_MISSING';
+ END IF;
+END $writer$;
 ROLLBACK;
-SELECT 'PASS: approval evidence positive and negative probes' AS result;
+SELECT 'PASS: approval evidence and history writer positive and negative probes' AS result;
