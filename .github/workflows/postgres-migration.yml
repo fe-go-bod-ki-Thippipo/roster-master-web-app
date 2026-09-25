@@ -104,6 +104,16 @@ jobs:
           PGUSER: roster_migrator
           PGDATABASE: roster_test
         run: psql -X -v ON_ERROR_STOP=1 -f database/tests/test_approval_evidence.sql
+      - name: Verify isolated H-1 company authorization B6-prime
+        env:
+          PGUSER: roster_migrator
+          PGDATABASE: roster_test
+        run: |
+          psql -X -v ON_ERROR_STOP=1 <<'SQL'
+          BEGIN;
+          \\i database/tests/h1_company_authorization.sql
+          ROLLBACK;
+          SQL
       - name: Verify company-history exclusion behavior
         env:
           PGUSER: roster_migrator
